@@ -7,7 +7,7 @@ export default function Home() {
   const [selectedChat, setSelectedChat] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  
+
   // Cargar los chats del usuario
   useEffect(() => {
     async function fetchChats() {
@@ -38,6 +38,30 @@ export default function Home() {
     setNewMessage('');
   }
 
+  // Función para manejar la subida de archivos
+  async function handleFileUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const { data, error } = await supabase.storage
+      .from('chat-uploads')
+      .upload(`uploads/${file.name}`, file);
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    // Añadir el enlace del archivo subido a la conversación
+    const fileUrl = data.Key; // Guardar la URL del archivo subido
+    const updatedMessages = [...messages, { user: `Archivo subido: ${fileUrl}` }];
+    setMessages(updatedMessages);
+    
+    // Guardar el enlace del archivo en el historial del chat
+    await supabase.from('chats').update({ conversation: updatedMessages }).eq('id', selectedChat.id);
+  }
+
+  // Aquí empieza el `return` del componente, el cual debe estar dentro de la función `Home`
   return (
     <div className={styles.container}>
       <aside className={styles.sidebar}>
@@ -69,6 +93,9 @@ export default function Home() {
                 placeholder="Escribe tu mensaje..."
               />
               <button onClick={handleSendMessage}>Enviar</button>
+
+              {/* Input de subida de archivos */}
+              <input type="file" onChange={handleFileUpload} />
             </div>
           </>
         ) : (
@@ -78,45 +105,3 @@ export default function Home() {
     </div>
   );
 }
-
-// Función para manejar la subida de archivos
-async function handleFileUpload(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-
-  const { data, error } = await supabase.storage
-    .from('chat-uploads')
-    .upload(`uploads/${file.name}`, file);
-
-  if (error) {
-    console.error(error);
-    return;
-  }
-
-  // Añadir el enlace del archivo subido a la conversación
-  const fileUrl = data.Key; // Guardar la URL del archivo subido
-  const updatedMessages = [...messages, { user: `Archivo subido: ${fileUrl}` }];
-  setMessages(updatedMessages);
-  
-  // Guardar el enlace del archivo en el historial del chat
-  await supabase.from('chats').update({ conversation: updatedMessages }).eq('id', selectedChat.id);
-}
-
-return (
-  <>
-    {/* Input de texto */}
-    <input
-      type="text"
-      value={newMessage}
-      onChange={(e) => setNewMessage(e.target.value)}
-      placeholder="Escribe tu mensaje..."
-    />
-    
-    {/* Botón de envío */}
-    <button onClick={handleSendMessage}>Enviar</button>
-
-    {/* Input de subida de archivos */}
-    <input type="file" onChange={handleFileUpload} />
-  </>
-);
-
